@@ -9,6 +9,7 @@ This is a Neovim plugin written in Lua that appears to be designed for previewin
 ## Architecture
 
 - **Main Module**: `lua/preview-on-console.lua` - Contains the core plugin functionality
+- **Daemon Command**: `preview-on-console` - To preview images on console
 - **Plugin Structure**: Follows standard Neovim plugin conventions with a `lua/` directory containing the main module
 
 ## Key Components

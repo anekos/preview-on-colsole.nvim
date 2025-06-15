@@ -9,11 +9,41 @@ set -euC
 # set -x
 
 fifo_path='/tmp/preview_on_console_fifo'
+cache_directory=$(mktemp -d)
+last_image_file=''
+
+function make_cache_path() {
+  local file_path="$1"
+  local hash
+
+  hash=$(
+    sha256sum "$file_path" | awk '{print $1}'
+  )
+  echo "${cache_directory}/${hash}.png"
+}
 
 function preview_pdf() {
   local pdf_path="$1"
-  command -v pdftotext &>/dev/null || return 1
-  echo "!! PDF: $pdf_path"
+  local page="${2:-1}"
+
+  local temp_image cache_path
+
+  cache_path=$(make_cache_path "$pdf_path")
+
+  if [ -f "$cache_path" ]
+  then
+    preview_image "$cache_path"
+    return 0
+  fi
+
+  command -v pdftoppm &>/dev/null || return 1
+  command -v kitty &>/dev/null || return 1
+
+  temp_image=$(mktemp --suffix=.png)
+  pdftoppm -f "$page" -l "$page" -png -scale-to-x 800 -scale-to-y -1 "$pdf_path" >| "$temp_image" 2>/dev/null
+
+  mv "$temp_image" "$cache_path"
+  preview_image "$cache_path"
 }
 
 function preview_image() {
@@ -26,6 +56,7 @@ function preview_image() {
 function preview_file() {
   local file_path="$1"
   [ -f "$file_path" ] || return 1
+  [ "$file_path" = "$last_image_file" ] && return 0
 
   local extension="${file_path##*.}"
   extension="${extension,,}"
@@ -38,13 +69,12 @@ function preview_file() {
       preview_pdf "$file_path"
       ;;
     *)
-      echo "Unsupported image format: $extension"
-      return 1
+      return
       ;;
   esac
 
+  last_image_file="$file_path"
   echo "$filepath"
-
 }
 
 
