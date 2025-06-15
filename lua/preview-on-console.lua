@@ -2,6 +2,7 @@ local M = {}
 
 local fifo_path = '/tmp/preview_on_console_fifo'
 local last_file_path = nil
+local enabled = false
 
 function M.get_cursor_file_path()
   local line = vim.api.nvim_get_current_line()
@@ -69,9 +70,12 @@ function M.write_to_fifo(content)
 end
 
 function M.on_cursor_moved()
+  if not enabled then
+    return
+  end
+
   local file_path = M.get_cursor_file_path()
   if not file_path then
-    print('No file path found at cursor position')
     return
   end
   if file_path == last_file_path then
@@ -81,10 +85,41 @@ function M.on_cursor_moved()
   last_file_path = file_path
 end
 
+function M.toggle()
+  enabled = not enabled
+  if enabled then
+    print('Preview on console: enabled')
+  else
+    print('Preview on console: disabled')
+  end
+end
+
+function M.enable()
+  enabled = true
+  print('Preview on console: enabled')
+end
+
+function M.disable()
+  enabled = false
+  print('Preview on console: disabled')
+end
+
 function M.setup()
   vim.api.nvim_create_autocmd('CursorMoved', {
     callback = M.on_cursor_moved,
     desc = 'Trigger on cursor movement',
+  })
+
+  vim.api.nvim_create_user_command('POCToggle', M.toggle, {
+    desc = 'Toggle preview on console functionality',
+  })
+
+  vim.api.nvim_create_user_command('POCEnable', M.enable, {
+    desc = 'Enable preview on console functionality',
+  })
+
+  vim.api.nvim_create_user_command('POCDisable', M.disable, {
+    desc = 'Disable preview on console functionality',
   })
 end
 
