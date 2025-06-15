@@ -78,6 +78,7 @@ function preview_file() {
   echo "$filepath"
 }
 
+mkdir -p "$cache_directory" ||:
 
 while read -r filepath
 do
