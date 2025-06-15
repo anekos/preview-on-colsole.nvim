@@ -2,7 +2,7 @@ local M = {}
 
 local fifo_path = '/tmp/preview_on_console_fifo'
 local last_file_path = nil
-local enabled = false
+local enabled = true
 
 function M.get_cursor_file_path()
   local line = vim.api.nvim_get_current_line()
