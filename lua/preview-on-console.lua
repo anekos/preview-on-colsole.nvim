@@ -78,11 +78,15 @@ function M.on_cursor_moved()
   if not file_path then
     return
   end
-  if file_path == last_file_path then
+
+  -- Convert to absolute path
+  local absolute_path = vim.fn.fnamemodify(file_path, ':p')
+
+  if absolute_path == last_file_path then
     return
   end
-  M.write_to_fifo(file_path)
-  last_file_path = file_path
+  M.write_to_fifo(absolute_path)
+  last_file_path = absolute_path
 end
 
 function M.toggle()

@@ -4,7 +4,7 @@ set -euC
 # set -o pipefail
 
 fifo_path='/tmp/preview_on_console_fifo'
-cache_directory=$(mktemp -d)
+cache_directory='/tmp/preview_on_consol_cache'
 last_image_file=''
 
 function make_cache_path() {
@@ -34,7 +34,6 @@ function preview_pdf() {
   command -v pdftoppm &>/dev/null || return 1
   command -v kitty &>/dev/null || return 1
 
-  echo "Loading PDF..."
   temp_image=$(mktemp --suffix=.png)
   pdftoppm -f "$page" -l "$page" -png -scale-to-x 800 -scale-to-y -1 "$pdf_path" >| "$temp_image" 2>/dev/null
 
@@ -45,6 +44,7 @@ function preview_pdf() {
 function preview_image() {
   local image_path="$1"
   command -v kitty &>/dev/null || return 1
+  printf '\033c'
   kitty icat --stdin=no --transfer-mode=file  "$image_path"
 }
 
@@ -53,6 +53,10 @@ function preview_file() {
   local file_path="$1"
   [ -f "$file_path" ] || return 1
   [ "$file_path" = "$last_image_file" ] && return 0
+
+  # Clear screen before preview
+  printf '\033c'
+  echo "Loading ..."
 
   local extension="${file_path##*.}"
   extension="${extension,,}"
@@ -65,6 +69,7 @@ function preview_file() {
       preview_pdf "$file_path"
       ;;
     *)
+      echo "Unsupported file type: $extension"
       return
       ;;
   esac
