@@ -1,5 +1,8 @@
 local M = {}
 
+local fifo_path = '/tmp/preview_on_console_fifo'
+local last_file_path = nil
+
 function M.get_cursor_file_path()
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2] + 1
@@ -44,8 +47,38 @@ function M.get_cursor_file_path()
   return file_path
 end
 
+function M.write_to_fifo(content)
+  local stat_cmd = string.format('test -p "%s"', fifo_path)
+  local exists = os.execute(stat_cmd) == 0
+
+  if not exists then
+    local mkfifo_cmd = string.format('mkfifo "%s"', fifo_path)
+    local result = os.execute(mkfifo_cmd)
+
+    if result ~= 0 then
+      return false, 'Failed to create FIFO'
+    end
+  end
+
+  vim.schedule(function()
+    local write_cmd = string.format('timeout 1 sh -c \'echo "%s" > "%s"\' &', content:gsub('"', '\\"'), fifo_path)
+    vim.fn.system(write_cmd)
+  end)
+
+  return true
+end
+
 function M.on_cursor_moved()
-  print(M.get_cursor_file_path() or 'No file path found at cursor position')
+  local file_path = M.get_cursor_file_path()
+  if not file_path then
+    print('No file path found at cursor position')
+    return
+  end
+  if file_path == last_file_path then
+    return
+  end
+  M.write_to_fifo(file_path)
+  last_file_path = file_path
 end
 
 function M.setup()
