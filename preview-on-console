@@ -1,0 +1,56 @@
+#!/bin/bash
+
+set -euC
+# set -o pipefail
+
+# exec 5>> /tmp/xmosh/shell-script-debug.out
+# BASH_XTRACEFD="5"
+# PS4='$LINENO: '
+# set -x
+
+fifo_path='/tmp/preview_on_console_fifo'
+
+function preview_pdf() {
+  local pdf_path="$1"
+  command -v pdftotext &>/dev/null || return 1
+  echo "!! PDF: $pdf_path"
+}
+
+function preview_image() {
+  local image_path="$1"
+  command -v kitty &>/dev/null || return 1
+  kitty icat --stdin=no --transfer-mode=file  "$image_path"
+}
+
+
+function preview_file() {
+  local file_path="$1"
+  [ -f "$file_path" ] || return 1
+
+  local extension="${file_path##*.}"
+  extension="${extension,,}"
+
+  case "$extension" in
+    jpg|jpeg|png|gif|bmp)
+      preview_image "$file_path"
+      ;;
+    pdf)
+      preview_pdf "$file_path"
+      ;;
+    *)
+      echo "Unsupported image format: $extension"
+      return 1
+      ;;
+  esac
+
+  echo "$filepath"
+
+}
+
+
+while read -r filepath
+do
+  preview_file "$filepath" ||:
+done < <(
+  tail -f "$fifo_path"
+)
