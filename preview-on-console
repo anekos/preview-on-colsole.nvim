@@ -3,11 +3,6 @@
 set -euC
 # set -o pipefail
 
-# exec 5>> /tmp/xmosh/shell-script-debug.out
-# BASH_XTRACEFD="5"
-# PS4='$LINENO: '
-# set -x
-
 fifo_path='/tmp/preview_on_console_fifo'
 cache_directory=$(mktemp -d)
 last_image_file=''
@@ -39,6 +34,7 @@ function preview_pdf() {
   command -v pdftoppm &>/dev/null || return 1
   command -v kitty &>/dev/null || return 1
 
+  echo "Loading PDF..."
   temp_image=$(mktemp --suffix=.png)
   pdftoppm -f "$page" -l "$page" -png -scale-to-x 800 -scale-to-y -1 "$pdf_path" >| "$temp_image" 2>/dev/null
 
