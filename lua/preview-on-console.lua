@@ -3,6 +3,7 @@ local M = {}
 local fifo_path = '/tmp/preview_on_console_fifo'
 local last_file_path = nil
 local enabled = true
+local debounce_timer = nil
 
 function M.get_cursor_file_path()
   local line = vim.api.nvim_get_current_line()
@@ -49,22 +50,23 @@ function M.get_cursor_file_path()
 end
 
 function M.write_to_fifo(content)
-  local stat_cmd = string.format('test -p "%s"', fifo_path)
-  local exists = os.execute(stat_cmd) == 0
-
-  if not exists then
-    local mkfifo_cmd = string.format('mkfifo "%s"', fifo_path)
-    local result = os.execute(mkfifo_cmd)
-
-    if result ~= 0 then
+  ---@diagnostic disable-next-line
+  local stat = vim.loop.fs_stat(fifo_path)
+  if not stat or stat.type ~= 'fifo' then
+    local success = os.execute(string.format('mkfifo "%s"', fifo_path)) == 0
+    if not success then
       return false, 'Failed to create FIFO'
     end
   end
 
-  vim.schedule(function()
-    local write_cmd = string.format('timeout 1 sh -c \'echo "%s" > "%s"\' &', content:gsub('"', '\\"'), fifo_path)
-    vim.fn.system(write_cmd)
-  end)
+  local file = io.open(fifo_path, 'a')
+  if file then
+    file:write(content .. '\n')
+    file:close()
+  else
+    print('Failed to open FIFO for writing')
+    return false, 'Failed to open FIFO'
+  end
 
   return true
 end
@@ -79,14 +81,22 @@ function M.on_cursor_moved()
     return
   end
 
-  -- Convert to absolute path
   local absolute_path = vim.fn.fnamemodify(file_path, ':p')
 
   if absolute_path == last_file_path then
     return
   end
-  M.write_to_fifo(absolute_path)
-  last_file_path = absolute_path
+
+  if debounce_timer then
+    vim.fn.timer_stop(debounce_timer)
+  end
+
+  local path_to_write = absolute_path
+  debounce_timer = vim.fn.timer_start(200, function()
+    M.write_to_fifo(path_to_write)
+    last_file_path = path_to_write
+    debounce_timer = nil
+  end)
 end
 
 function M.toggle()

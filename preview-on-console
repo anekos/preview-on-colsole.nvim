@@ -80,9 +80,10 @@ function preview_file() {
 
 mkdir -p "$cache_directory" ||:
 
-while read -r filepath
+while true
 do
-  preview_file "$filepath" ||:
-done < <(
-  tail -f "$fifo_path"
-)
+  while read -r filepath
+  do
+    preview_file "$filepath" ||:
+  done < "$fifo_path"
+done
