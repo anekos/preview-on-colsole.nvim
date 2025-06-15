@@ -13,9 +13,15 @@ This is a Neovim plugin written in Lua that appears to be designed for previewin
 
 ## Key Components
 
+### Neovim Plugin
+
 - `M.setup()`: Initializes the plugin by creating an autocmd for cursor movement
 - `M.on_cursor_moved()`: Callback function triggered on cursor movement
 - `M.get_cursor_file_path()`: Referenced but not yet implemented - this function should extract file paths from cursor position
+
+### Shell Command
+
+- `prevew_on_console`: Read the path from the FIFO file and preview that file.
 
 ## Development Notes
 
