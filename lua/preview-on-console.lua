@@ -4,10 +4,10 @@ local fifo_path = '/tmp/preview_on_console_fifo'
 local last_file_path = nil
 local enabled = false
 local debounce_timer = nil
-local buffer_caches = {}
+local liname_buffer_cache = {}
 
 function M.get_buffer_cache(bufnr)
-  return buffer_caches[bufnr or vim.api.nvim_get_current_buf()]
+  return liname_buffer_cache[bufnr or vim.api.nvim_get_current_buf()]
 end
 
 function M.get_cursor_file_path()
@@ -92,7 +92,19 @@ function M.on_cursor_moved()
     return
   end
 
-  local file_path = M.get_cursor_file_path()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local cache = M.get_buffer_cache(bufnr)
+  local file_path = nil
+
+  if cache then
+    local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
+    file_path = cache[cursor_line]
+  end
+
+  if not file_path then
+    file_path = M.get_cursor_file_path()
+  end
+
   if not file_path then
     return
   end
@@ -151,9 +163,9 @@ function M.build_buffer_cache()
     end
   end
 
-  buffer_caches[bufnr] = cache
+  liname_buffer_cache[bufnr] = cache
 
-  print(vim.inspect(buffer_caches))
+  print(vim.inspect(liname_buffer_cache))
   return cache
 end
 
@@ -186,7 +198,7 @@ function M.setup()
     desc = 'Disable preview on console functionality',
   })
 
-  vim.api.nvim_create_user_command('POCEnableLiname', M.enable_liname, {
+  vim.api.nvim_create_user_command('POCLinameEnable', M.enable_liname, {
     desc = 'Enable liname functionality and build buffer cache',
   })
 end
