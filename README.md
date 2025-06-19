@@ -143,8 +143,8 @@ require('preview-on-console').setup()
 
 ## License
 
-[Add your license here]
+MIT License
 
 ## Contributing
 
-[Add contribution guidelines here]
+Feel free to submit pull requests with improvements, bug fixes, or new features!
