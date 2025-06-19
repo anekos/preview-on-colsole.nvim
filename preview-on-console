@@ -35,9 +35,19 @@ function preview_pdf() {
   command -v kitty &>/dev/null || return 1
 
   temp_image=$(mktemp --suffix=.png)
-  pdftoppm -f "$page" -l "$page" -png -scale-to-x 800 -scale-to-y -1 "$pdf_path" >| "$temp_image" 2>/dev/null
+  if ! pdftoppm -f "$page" -l "$page" -png -scale-to-x 800 -scale-to-y -1 "$pdf_path" >| "$temp_image" 2>/dev/null
+  then
+    rm -f "$temp_image"
+    echo "Failed to convert PDF: $pdf_path"
+    return 1
+  fi
 
-  mv "$temp_image" "$cache_path"
+  if ! mv "$temp_image" "$cache_path"
+  then
+    rm -f "$temp_image"
+    echo "Failed to cache PDF preview: $cache_path"
+    return 1
+  fi
   preview_image "$cache_path"
 }
 
@@ -51,7 +61,27 @@ function preview_image() {
 
 function preview_file() {
   local file_path="$1"
-  [ -f "$file_path" ] || return 1
+  
+  # Validate file path
+  if [[ -z "$file_path" ]]
+  then
+    echo "Error: Empty file path" >&2
+    return 1
+  fi
+  
+  # Check if file exists and is readable
+  if [[ ! -f "$file_path" ]]
+  then
+    echo "Error: File not found: $file_path" >&2
+    return 1
+  fi
+  
+  if [[ ! -r "$file_path" ]]
+  then
+    echo "Error: File not readable: $file_path" >&2
+    return 1
+  fi
+  
   [ "$file_path" = "$last_image_file" ] && return 0
 
   # Clear screen before preview
@@ -78,12 +108,26 @@ function preview_file() {
   echo "$file_path"
 }
 
-mkdir -p "$cache_directory" ||:
+if ! mkdir -p "$cache_directory"
+then
+  echo "Error: Failed to create cache directory: $cache_directory" >&2
+  exit 1
+fi
 
 while true
 do
+  if [[ ! -p "$fifo_path" ]]
+  then
+    echo "Error: FIFO not found: $fifo_path" >&2
+    sleep 1
+    continue
+  fi
+  
   while read -r filepath
   do
     preview_file "$filepath" ||:
   done < "$fifo_path"
+  
+  # Small delay to prevent high CPU usage when FIFO is closed
+  sleep 0.1
 done

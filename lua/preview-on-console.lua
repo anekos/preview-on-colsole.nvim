@@ -69,7 +69,9 @@ function M.write_to_fifo(content)
   ---@diagnostic disable-next-line
   local stat = vim.loop.fs_stat(fifo_path)
   if not stat or stat.type ~= 'fifo' then
-    local success = os.execute(string.format('mkfifo "%s"', fifo_path)) == 0
+    -- Escape the path to prevent shell injection
+    local escaped_path = vim.fn.shellescape(fifo_path)
+    local success = os.execute('mkfifo ' .. escaped_path) == 0
     if not success then
       return false, 'Failed to create FIFO'
     end
