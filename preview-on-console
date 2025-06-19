@@ -4,7 +4,7 @@ set -euC
 # set -o pipefail
 
 fifo_path='/tmp/preview_on_console_fifo'
-cache_directory='/tmp/preview_on_consol_cache'
+cache_directory='/tmp/preview_on_console_cache'
 last_image_file=''
 
 function make_cache_path() {
@@ -75,7 +75,7 @@ function preview_file() {
   esac
 
   last_image_file="$file_path"
-  echo "$filepath"
+  echo "$file_path"
 }
 
 mkdir -p "$cache_directory" ||:
