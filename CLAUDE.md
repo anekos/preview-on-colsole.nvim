@@ -35,3 +35,8 @@ This is a Neovim plugin written in Lua that appears to be designed for previewin
 This plugin follows the standard Neovim plugin structure where users would typically:
 1. Install via plugin manager 
 2. Call `require('preview-on-console').setup()` in their config
+
+
+# Development Guidelines
+
+- After any changes, commit them by git.
