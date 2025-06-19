@@ -51,6 +51,29 @@ function preview_pdf() {
   preview_image "$cache_path"
 }
 
+function preview_svg() {
+  local svg_path="$1"
+  local cache_path
+  
+  cache_path=$(make_cache_path "$svg_path")
+  
+  if [ -f "$cache_path" ]
+  then
+    preview_image "$cache_path"
+    return 0
+  fi
+  
+  command -v rsvg-convert &>/dev/null || return 1
+  
+  if ! rsvg-convert -w 800 -f png "$svg_path" -o "$cache_path" 2>/dev/null
+  then
+    echo "Failed to convert SVG: $svg_path"
+    return 1
+  fi
+  
+  preview_image "$cache_path"
+}
+
 function preview_image() {
   local image_path="$1"
   command -v kitty &>/dev/null || return 1
@@ -92,8 +115,11 @@ function preview_file() {
   extension="${extension,,}"
 
   case "$extension" in
-    jpg|jpeg|png|gif|bmp)
+    jpg|jpeg|png|gif|bmp|webp)
       preview_image "$file_path"
+      ;;
+    svg)
+      preview_svg "$file_path"
       ;;
     pdf)
       preview_pdf "$file_path"
