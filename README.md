@@ -2,6 +2,8 @@
 
 A Neovim plugin that automatically previews images, PDFs, and SVG files in your terminal when your cursor hovers over file paths.
 
+![Screenshot](screenshot.jpg)
+
 ## Features
 
 - **Real-time preview**: Automatically displays images when cursor moves over file paths
