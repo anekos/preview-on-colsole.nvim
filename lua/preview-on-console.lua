@@ -167,7 +167,6 @@ function M.build_buffer_cache()
 
   liname_buffer_cache[bufnr] = cache
 
-  print(vim.inspect(liname_buffer_cache))
   return cache
 end
 

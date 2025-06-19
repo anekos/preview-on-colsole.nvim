@@ -118,9 +118,12 @@ while true
 do
   if [[ ! -p "$fifo_path" ]]
   then
-    echo "Error: FIFO not found: $fifo_path" >&2
-    sleep 1
-    continue
+    echo "Creating FIFO: $fifo_path"
+    if ! mkfifo "$fifo_path"; then
+      echo "Error: Failed to create FIFO: $fifo_path" >&2
+      sleep 1
+      continue
+    fi
   fi
   
   while read -r filepath
