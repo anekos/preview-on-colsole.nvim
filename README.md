@@ -39,7 +39,7 @@ brew install poppler librsvg
 
 ```lua
 {
-  "your-username/preview-on-console",
+  "anekos/preview-on-console.nvim",
   config = function()
     require('preview-on-console').setup()
   end
@@ -50,7 +50,7 @@ brew install poppler librsvg
 
 ```lua
 use {
-  'your-username/preview-on-console',
+  'anekos/preview-on-console.nvim',
   config = function()
     require('preview-on-console').setup()
   end
@@ -61,7 +61,7 @@ use {
 
 1. Clone the repository to your Neovim plugin directory:
    ```bash
-   git clone https://github.com/your-username/preview-on-console.git ~/.local/share/nvim/site/pack/plugins/start/preview-on-console
+   git clone https://github.com/anekos/preview-on-console.nvim.git ~/.local/share/nvim/site/pack/plugins/start/preview-on-console
    ```
 
 2. Add to your `init.lua`:
