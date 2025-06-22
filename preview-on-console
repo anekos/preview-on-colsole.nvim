@@ -7,23 +7,36 @@ fifo_path='/tmp/preview_on_console_fifo'
 cache_directory='/tmp/preview_on_console_cache'
 last_image_file=''
 
+opt_page=1
+
 function make_cache_path() {
   local file_path="$1"
+  local suffix="${2:-}"
   local hash
 
   hash=$(
-    sha256sum "$file_path" | awk '{print $1}'
+    sha256sum "${file_path}" | awk '{print $1}'
   )
-  echo "${cache_directory}/${hash}.png"
+  [[ -n "$suffix" ]] && suffix="_${suffix}"
+  echo "${cache_directory}/${hash}${suffix}.png"
 }
 
 function preview_pdf() {
   local pdf_path="$1"
   local page="${2:-1}"
+  local temp_image cache_path last_page
 
-  local temp_image cache_path
+  # If minus is used, it means the last page
+  if [[ "$page" == -* ]]
+  then
+    last_page=$(
+      pdfinfo "$pdf_path" 2>/dev/null | grep -oP 'Pages:\s+\K\d+' || echo 1
+    )
+    page=$((last_page + page + 1))
+  fi
 
-  cache_path=$(make_cache_path "$pdf_path")
+  cache_path=$(make_cache_path "${pdf_path}" "page=${page}")
+  echo "$cache_path"
 
   if [ -f "$cache_path" ]
   then
@@ -54,23 +67,23 @@ function preview_pdf() {
 function preview_svg() {
   local svg_path="$1"
   local cache_path
-  
+
   cache_path=$(make_cache_path "$svg_path")
-  
+
   if [ -f "$cache_path" ]
   then
     preview_image "$cache_path"
     return 0
   fi
-  
+
   command -v rsvg-convert &>/dev/null || return 1
-  
+
   if ! rsvg-convert -w 800 -f png "$svg_path" -o "$cache_path" 2>/dev/null
   then
     echo "Failed to convert SVG: $svg_path"
     return 1
   fi
-  
+
   preview_image "$cache_path"
 }
 
@@ -84,27 +97,22 @@ function preview_image() {
 
 function preview_file() {
   local file_path="$1"
-  
-  # Validate file path
-  if [[ -z "$file_path" ]]
-  then
-    echo "Error: Empty file path" >&2
-    return 1
-  fi
-  
+
+  [ -d "$file_path" ] && return 0
+
   # Check if file exists and is readable
   if [[ ! -f "$file_path" ]]
   then
     echo "Error: File not found: $file_path" >&2
     return 1
   fi
-  
+
   if [[ ! -r "$file_path" ]]
   then
     echo "Error: File not readable: $file_path" >&2
     return 1
   fi
-  
+
   [ "$file_path" = "$last_image_file" ] && return 0
 
   # Clear screen before preview
@@ -122,7 +130,7 @@ function preview_file() {
       preview_svg "$file_path"
       ;;
     pdf)
-      preview_pdf "$file_path"
+      preview_pdf "$file_path" "$opt_page"
       ;;
     *)
       echo "Unsupported file type: $extension"
@@ -134,29 +142,57 @@ function preview_file() {
   echo "$file_path"
 }
 
-if ! mkdir -p "$cache_directory"
-then
-  echo "Error: Failed to create cache directory: $cache_directory" >&2
-  exit 1
-fi
+function parse_options() {
+  while getopts ":p:" opt; do
+    case $opt in
+      p)
+        opt_page="$OPTARG"
+        if ! [[ "$opt_page" =~ ^-?[0-9]+$ ]]
+        then
+          echo "Invalid page number: $opt_page" >&2
+          exit 1
+        fi
+        ;;
+      \?)
+        echo "Invalid option: -$OPTARG" >&2
+        exit 1
+        ;;
+      :)
+        echo "Option -$OPTARG requires an argument." >&2
+        exit 1
+        ;;
+    esac
+  done
+}
 
-while true
-do
-  if [[ ! -p "$fifo_path" ]]
+function main() {
+  if ! mkdir -p "$cache_directory"
   then
-    echo "Creating FIFO: $fifo_path"
-    if ! mkfifo "$fifo_path"; then
-      echo "Error: Failed to create FIFO: $fifo_path" >&2
-      sleep 1
-      continue
-    fi
+    echo "Error: Failed to create cache directory: $cache_directory" >&2
+    exit 1
   fi
-  
-  while read -r filepath
+
+  while true
   do
-    preview_file "$filepath" ||:
-  done < "$fifo_path"
-  
-  # Small delay to prevent high CPU usage when FIFO is closed
-  sleep 0.1
-done
+    if [[ ! -p "$fifo_path" ]]
+    then
+      echo "Creating FIFO: $fifo_path"
+      if ! mkfifo "$fifo_path"; then
+        echo "Error: Failed to create FIFO: $fifo_path" >&2
+        sleep 1
+        continue
+      fi
+    fi
+
+    while read -r filepath
+    do
+      preview_file "$filepath" ||:
+    done < "$fifo_path"
+
+    # Small delay to prevent high CPU usage when FIFO is closed
+    sleep 0.1
+  done
+}
+
+parse_options "$@"
+main
