@@ -144,14 +144,22 @@ function M.write_to_fifo(content)
     end
   end
 
-  local file = io.open(fifo_path, 'a')
-  if file then
-    file:write(content .. '\n')
-    file:close()
-  else
-    print('Failed to open FIFO for writing')
-    return false, 'Failed to open FIFO'
-  end
+  -- Use vim.loop.fs_open with non-blocking write to avoid blocking
+  -- 438 = 0666 in octal (rw-rw-rw-)
+  vim.loop.fs_open(fifo_path, 'a', 438, function(err, fd)
+    if err or not fd then
+      -- Silently ignore errors to avoid spam in console
+      return
+    end
+    
+    local data = content .. '\n'
+    vim.loop.fs_write(fd, data, -1, function(write_err)
+      if write_err then
+        -- Silently ignore write errors
+      end
+      vim.loop.fs_close(fd, function() end)
+    end)
+  end)
 
   return true
 end
