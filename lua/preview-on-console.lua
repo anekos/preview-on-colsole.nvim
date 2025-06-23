@@ -145,8 +145,8 @@ function M.write_to_fifo(content)
   end
 
   -- Use vim.loop.fs_open with non-blocking write to avoid blocking
-  -- 438 = 0666 in octal (rw-rw-rw-)
-  vim.loop.fs_open(fifo_path, 'a', 438, function(err, fd)
+  -- 384 = 0600 in octal (rw-------)
+  vim.loop.fs_open(fifo_path, 'a', 384, function(err, fd)
     if err or not fd then
       -- Silently ignore errors to avoid spam in console
       return
