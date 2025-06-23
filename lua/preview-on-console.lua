@@ -151,7 +151,7 @@ function M.write_to_fifo(content)
       -- Silently ignore errors to avoid spam in console
       return
     end
-    
+
     local data = content .. '\n'
     vim.loop.fs_write(fd, data, -1, function(write_err)
       if write_err then

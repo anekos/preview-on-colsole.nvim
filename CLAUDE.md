@@ -40,3 +40,4 @@ This plugin follows the standard Neovim plugin structure where users would typic
 # Development Guidelines
 
 - After any changes, commit them by git.
+- Format Lua code with stylua before committing.
