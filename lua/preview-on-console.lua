@@ -6,6 +6,23 @@ local enabled = false
 local debounce_timer = nil
 local liname_buffer_cache = {}
 
+-- Default configuration
+local config = {
+  -- Lua patterns for file name recognition
+  patterns = {
+    -- Common file path patterns
+    '/[^%s]+%.%w+',    -- Absolute paths like /path/to/file.ext
+    '%.?/[^%s]+%.%w+', -- Relative paths like ./path/to/file.ext or ../file.ext
+    '[%w_%-%.]+%.%w+', -- Simple filenames like file.ext
+    '~[^%s]*%.%w+',    -- Home directory paths like ~/file.ext
+    -- Custom patterns can be added here
+  },
+  -- Whether to use word boundaries for file detection
+  word_boundaries = true,
+  -- Characters considered as word separators
+  separators = { ' ', '\t', '\n', '\r', '(', ')', '[', ']', '{', '}', '<', '>', '"', "'", '`' },
+}
+
 function M.get_buffer_cache(bufnr)
   return liname_buffer_cache[bufnr or vim.api.nvim_get_current_buf()]
 end
@@ -29,40 +46,90 @@ function M.get_cursor_file_path()
     return nil
   end
 
-  local file_chars = '[^%c]'
+  -- Try to find file paths using configured patterns
+  for _, pattern in ipairs(config.patterns) do
+    local matches = {}
+    local start_pos = 1
 
-  local start_pos = col
-  local end_pos = col
+    while start_pos <= #line do
+      local match_start, match_end = line:find(pattern, start_pos)
+      if not match_start then
+        break
+      end
 
-  while start_pos > 1 do
-    local char = line:sub(start_pos - 1, start_pos - 1)
-    if char:match(file_chars) and char ~= '\t' then
-      start_pos = start_pos - 1
-    else
-      break
+      local match = line:sub(match_start, match_end)
+      table.insert(matches, {
+        text = match,
+        start_pos = match_start,
+        end_pos = match_end,
+      })
+
+      start_pos = match_end + 1
+    end
+
+    -- Check if cursor is within any of the matches
+    for _, match in ipairs(matches) do
+      if col >= match.start_pos and col <= match.end_pos then
+        local file_path = match.text:match('^%s*(.-)%s*$')
+        if file_path and file_path ~= '' then
+          return file_path
+        end
+      end
     end
   end
 
-  while end_pos <= #line do
-    local char = line:sub(end_pos, end_pos)
-    if char:match(file_chars) and char ~= '\t' then
-      end_pos = end_pos + 1
-    else
-      break
+  -- Fallback to original behavior if no pattern matches
+  if config.word_boundaries then
+    local file_chars = '[^%c]'
+    local start_pos = col
+    local end_pos = col
+
+    while start_pos > 1 do
+      local char = line:sub(start_pos - 1, start_pos - 1)
+      local is_separator = false
+      for _, sep in ipairs(config.separators) do
+        if char == sep then
+          is_separator = true
+          break
+        end
+      end
+      if not is_separator and char:match(file_chars) then
+        start_pos = start_pos - 1
+      else
+        break
+      end
     end
+
+    while end_pos <= #line do
+      local char = line:sub(end_pos, end_pos)
+      local is_separator = false
+      for _, sep in ipairs(config.separators) do
+        if char == sep then
+          is_separator = true
+          break
+        end
+      end
+      if not is_separator and char:match(file_chars) then
+        end_pos = end_pos + 1
+      else
+        break
+      end
+    end
+
+    if start_pos >= end_pos then
+      return nil
+    end
+
+    local file_path = line:sub(start_pos, end_pos - 1):match('^%s*(.-)%s*$')
+
+    if file_path == '' then
+      return nil
+    end
+
+    return file_path
   end
 
-  if start_pos >= end_pos then
-    return nil
-  end
-
-  local file_path = line:sub(start_pos, end_pos - 1):match('^%s*(.-)%s*$')
-
-  if file_path == '' then
-    return nil
-  end
-
-  return file_path
+  return nil
 end
 
 function M.write_to_fifo(content)
@@ -181,7 +248,23 @@ function M.enable_liname()
   print(string.format('Liname cache built for buffer: %d entries', cache_size))
 end
 
-function M.setup()
+function M.setup(user_config)
+  -- Merge user config with default config
+  if user_config then
+    if user_config.patterns then
+      config.patterns = user_config.patterns
+    end
+    if user_config.word_boundaries ~= nil then
+      config.word_boundaries = user_config.word_boundaries
+    end
+    if user_config.separators then
+      config.separators = user_config.separators
+    end
+    if user_config.fifo_path then
+      fifo_path = user_config.fifo_path
+    end
+  end
+
   vim.api.nvim_create_autocmd('CursorMoved', {
     callback = M.on_cursor_moved,
     desc = 'Trigger on cursor movement',
@@ -202,6 +285,21 @@ function M.setup()
   vim.api.nvim_create_user_command('POCLinameEnable', M.enable_liname, {
     desc = 'Enable liname functionality and build buffer cache',
   })
+end
+
+-- Function to add custom patterns
+function M.add_pattern(pattern)
+  table.insert(config.patterns, pattern)
+end
+
+-- Function to set patterns (replaces all existing patterns)
+function M.set_patterns(patterns)
+  config.patterns = patterns
+end
+
+-- Function to get current configuration
+function M.get_config()
+  return vim.deepcopy(config)
 end
 
 return M
