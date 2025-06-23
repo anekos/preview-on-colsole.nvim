@@ -153,10 +153,10 @@ function M.write_to_fifo(content)
     end
 
     local data = content .. '\n'
-    vim.loop.fs_write(fd, data, -1, function(write_err)
-      if write_err then
-        -- Silently ignore write errors
-      end
+    vim.loop.fs_write(fd, data, -1, function(_write_err)
+      -- if write_err then
+      --   -- Silently ignore write errors
+      -- end
       vim.loop.fs_close(fd, function() end)
     end)
   end)
