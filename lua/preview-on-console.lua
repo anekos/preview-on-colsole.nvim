@@ -27,15 +27,31 @@ function M.get_buffer_cache(bufnr)
   return liname_buffer_cache[bufnr or vim.api.nvim_get_current_buf()]
 end
 
+function M.parse_liname_line(line)
+  local tab_pos = line:find('\t')
+  if tab_pos then
+    local line_number_part = line:sub(1, tab_pos - 1)
+    local file_path_part = line:sub(tab_pos + 1)
+
+    if line_number_part:match('^%d+$') and file_path_part ~= '' then
+      return tonumber(line_number_part), file_path_part
+    end
+  end
+  return nil, nil
+end
+
 function M.get_cursor_file_path()
   local bufnr = vim.api.nvim_get_current_buf()
   local cache = M.get_buffer_cache(bufnr)
 
   if cache then
-    local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
-    local cached_path = cache[cursor_line]
-    if cached_path then
-      return cached_path
+    local line = vim.api.nvim_get_current_line()
+    local line_number, _ = M.parse_liname_line(line)
+    if line_number then
+      local cached_path = cache[line_number]
+      if cached_path then
+        return cached_path
+      end
     end
   end
 
@@ -174,8 +190,11 @@ function M.on_cursor_moved()
   local file_path = nil
 
   if cache then
-    local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
-    file_path = cache[cursor_line]
+    local line = vim.api.nvim_get_current_line()
+    local line_number, _ = M.parse_liname_line(line)
+    if line_number then
+      file_path = cache[line_number]
+    end
   end
 
   if not file_path then
@@ -229,14 +248,9 @@ function M.build_buffer_cache()
   local cache = {}
 
   for _, line_content in ipairs(lines) do
-    local tab_pos = line_content:find('\t')
-    if tab_pos then
-      local line_number_part = line_content:sub(1, tab_pos - 1)
-      local file_path_part = line_content:sub(tab_pos + 1)
-
-      if line_number_part:match('^%d+$') and file_path_part ~= '' then
-        cache[tonumber(line_number_part)] = file_path_part
-      end
+    local line_number, file_path_part = M.parse_liname_line(line_content)
+    if line_number and file_path_part then
+      cache[line_number] = file_path_part
     end
   end
 
