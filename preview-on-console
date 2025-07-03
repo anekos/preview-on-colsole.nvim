@@ -142,8 +142,42 @@ function preview_file() {
   echo "$file_path"
 }
 
+function cache_files_in_directory() {
+  local directory_path="$1"
+  mkdir -p "$cache_directory" || return 1
+
+  echo "Caching files in: $directory_path"
+
+  local files=()
+  while IFS= read -r -d '' file_path; do
+    files+=("$file_path")
+  done < <(find "$directory_path" -type f \( -name "*.svg" -o -name "*.pdf" \) -print0)
+
+  local total_files=${#files[@]}
+  local current_count=0
+
+  for file_path in "${files[@]}"; do
+    current_count=$((current_count + 1))
+    local extension="${file_path##*.}"
+    extension="${extension,,}"
+
+    echo "$current_count of $total_files"
+
+    case "$extension" in
+      svg)
+        preview_svg "$file_path" >/dev/null 2>&1
+        ;;
+      pdf)
+        preview_pdf "$file_path" 1 >/dev/null 2>&1
+        ;;
+    esac
+  done
+
+  echo "Caching completed"
+}
+
 function parse_options() {
-  while getopts ":p:" opt; do
+  while getopts ":p:c:" opt; do
     case $opt in
       p)
         opt_page="$OPTARG"
@@ -152,6 +186,14 @@ function parse_options() {
           echo "Invalid page number: $opt_page" >&2
           exit 1
         fi
+        ;;
+      c)
+        if [[ ! -d "$OPTARG" ]]
+        then
+          echo "Error: Directory not found: $OPTARG" >&2
+          exit 1
+        fi
+        cache_files_in_directory "$OPTARG"
         ;;
       \?)
         echo "Invalid option: -$OPTARG" >&2
